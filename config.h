@@ -99,7 +99,4 @@
 
 #define NUM_PAGES               3
 
-/* Debugging */
-#define DEBUG                   1
-
 #endif /* CONFIG_H_ */
