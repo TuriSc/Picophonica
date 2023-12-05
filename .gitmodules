@@ -1,0 +1,3 @@
+[submodule "lib/RP2040-Keypad-Matrix"]
+	path = lib/RP2040-Keypad-Matrix
+	url = https://github.com/TuriSc/RP2040-Keypad-Matrix
