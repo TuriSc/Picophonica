@@ -3,7 +3,7 @@
 
 /* Device identifiers */
 #define PROGRAM_NAME            "Picophonica"
-#define PROGRAM_VERSION         "1.0.0"
+#define PROGRAM_VERSION         "1.1.0"
 #define PROGRAM_DESCRIPTION     "Synth engine for a toy keyboard, with instrument presets and Midi out"
 #define PROGRAM_URL             "https://turiscandurra.com/circuits"
 #define USB_STR_MANUFACTURER    "TuriScandurra"
@@ -14,8 +14,10 @@
 #define CAPO_DEFAULT            48
 
 /* GPIO definitions */
-#define AUDIO_PIN               28 // Note: also hardcoded in pico_synth_ex.c
-#define AUDIO_PIN_DESCRIPTION   "Audio out"
+#define PWMA_R_GPIO             -1 // GPIO number for PWM output (right channel)
+#define PWMA_L_GPIO             28 // GPIO number for PWM output (left channel)
+#define PWMA_R_GPIO_DESCRIPTION "Audio out (right channel)"
+#define PWMA_L_GPIO_DESCRIPTION "Audio out (left channel)"
 
 // The main keybed
 #define KEYPAD_0_COLS           {2, 3, 4, 5, 6, 7, 8, 9}
@@ -94,6 +96,9 @@
 #define LFO_DEPTH_DEC           KEY_D_DOWN  + NUM_KEYS_1 * 2
 #define LFO_RATE_INC            KEY_E_UP    + NUM_KEYS_1 * 2
 #define LFO_RATE_DEC            KEY_E_DOWN  + NUM_KEYS_1 * 2
+
+// Not accessible via the keypad:
+#define OSC_WAVEFORM            KEY_A_UP    + NUM_KEYS_1 * 3
 
 #define ALL_NOTES_OFF           20
 

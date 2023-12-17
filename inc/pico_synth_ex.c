@@ -4,11 +4,9 @@
  * https://github.com/risgk/pico_synth_ex   https://risgk.github.io
  * Licensed under a CC0 license
  *
- * Edited with minor modifications by Turi Scandurra on 2023-10-27
- * as part of Picophonica  https://github.com/TuriSc/Picophonica
+ * Edited by Turi Scandurra as part of Picophonica
+ * https://github.com/TuriSc/Picophonica
  *
- * Please note: this implementation is monoaural and outputs sound via PWM on pin 28.
- * Uncomment references to PWMA_R_* to restore stereo output.
  */
 
 #include <stdio.h>
@@ -254,35 +252,44 @@ static inline Q14 LFO_process(uint8_t id) {
 }
 
 //////// PWM audio output block ///////////////////////
-#define PWMA_L_GPIO (28) // GPIO number for PWM output (left channel)
-#define PWMA_L_SLICE (6) // PWM slice number (left channel)
-#define PWMA_L_CHAN (PWM_CHAN_A) // PWM channel (left channel)
-// #define PWMA_R_GPIO (27) // GPIO number for PWM output (right channel)
-// #define PWMA_R_SLICE (5) // PWM slice number (right channel)
-// #define PWMA_R_CHAN (PWM_CHAN_B) // PWM channel (right channel)
+static uint8_t PWMA_R_SLICE;
+static uint8_t PWMA_L_SLICE;
+static uint8_t PWMA_R_CHAN;
+static uint8_t PWMA_L_CHAN;
+
 #define PWMA_CYCLE (FCLKSYS / FS) // PWM cycle
 
 static void pwm_irq_handler();
 
 static void PWMA_init() {
-  //   gpio_set_function(PWMA_R_GPIO, GPIO_FUNC_PWM);
-  gpio_set_function(PWMA_L_GPIO, GPIO_FUNC_PWM);
+  if(PWMA_R_GPIO > -1) {
+    PWMA_R_SLICE = pwm_gpio_to_slice_num(PWMA_R_GPIO);
+    PWMA_R_CHAN = pwm_gpio_to_channel(PWMA_R_GPIO);
+    gpio_set_function(PWMA_R_GPIO, GPIO_FUNC_PWM);
+    pwm_set_wrap(PWMA_R_SLICE, PWMA_CYCLE - 1);
+    pwm_set_chan_level(PWMA_R_SLICE, PWMA_R_CHAN, PWMA_CYCLE / 2);
+    pwm_set_enabled(PWMA_R_SLICE, true);
+  }
+  if(PWMA_L_GPIO > -1) {
+    PWMA_L_SLICE = pwm_gpio_to_slice_num(PWMA_L_GPIO);
+    PWMA_L_CHAN = pwm_gpio_to_channel(PWMA_L_GPIO);
+    gpio_set_function(PWMA_L_GPIO, GPIO_FUNC_PWM);
+    pwm_set_wrap(PWMA_L_SLICE, PWMA_CYCLE - 1);
+    pwm_set_chan_level(PWMA_L_SLICE, PWMA_L_CHAN, PWMA_CYCLE / 2);
+    pwm_set_enabled(PWMA_L_SLICE, true);
+    pwm_set_irq_enabled(PWMA_L_SLICE, true);
+  } else {
+    pwm_set_irq_enabled(PWMA_R_SLICE, true);
+  }
   irq_set_exclusive_handler(PWM_IRQ_WRAP, pwm_irq_handler);
   irq_set_enabled(PWM_IRQ_WRAP, true);
-  pwm_set_irq_enabled(PWMA_L_SLICE, true);
-  //   pwm_set_wrap(PWMA_R_SLICE, PWMA_CYCLE - 1);
-  pwm_set_wrap(PWMA_L_SLICE, PWMA_CYCLE - 1);
-  //   pwm_set_chan_level(PWMA_R_SLICE, PWMA_R_CHAN, PWMA_CYCLE / 2);
-  pwm_set_chan_level(PWMA_L_SLICE, PWMA_L_CHAN, PWMA_CYCLE / 2);
-  //   pwm_set_enabled(PWMA_R_SLICE, true);
-  pwm_set_enabled(PWMA_L_SLICE, true);
 }
 
 static inline void PWMA_process(Q28 audio_in) {
   int32_t level_int32 = (audio_in >> 18) + (PWMA_CYCLE / 2);
   uint16_t level = (level_int32 > 0) * level_int32;
-  //   pwm_set_chan_level(PWMA_R_SLICE, PWMA_R_CHAN, level);
-  pwm_set_chan_level(PWMA_L_SLICE, PWMA_L_CHAN, level);
+  if(PWMA_R_GPIO > -1) pwm_set_chan_level(PWMA_R_SLICE, PWMA_R_CHAN, level);
+  if(PWMA_L_GPIO > -1) pwm_set_chan_level(PWMA_L_SLICE, PWMA_L_CHAN, level);
 }
 
 //////// Interrupt handler and main function ////////////
@@ -414,7 +421,7 @@ void synth_control(uint8_t key)
     case LFO_DEPTH_INC:           if (LFO_depth          < 64)  { ++LFO_depth;          } break;
     case LFO_RATE_DEC:            if (LFO_rate           > 0)   { --LFO_rate;           } break;
     case LFO_RATE_INC:            if (LFO_rate           < 64)  { ++LFO_rate;           } break;
-    // Note: Osc_waveform is not accessible via the keypad
+    case OSC_WAVEFORM:                     Osc_waveform = (++Osc_waveform % 2 );          break;
     case ALL_NOTES_OFF:                                         all_notes_off();          break;
     case PRESET_0:                                              load_preset(0);           break;
     case PRESET_1:                                              load_preset(1);           break;
@@ -434,18 +441,18 @@ void print_status(){
       pitch_voice[0], pitch_voice[1], pitch_voice[2], pitch_voice[3]);
   printf("Gate              : [ %3hhu, %3hhu, %3hhu, %3hhu ]\n",
       gate_voice[0], gate_voice[1], gate_voice[2], gate_voice[3]);
-  printf("Octave Shift      : %+3hd (1/9)\n", octave_shift);
-  printf("Osc Waveform      : %3hhu (A/a)\n", Osc_waveform);
-  printf("Osc 2 Coarse Pitch: %+3hd (S/s)\n", Osc_2_coarse_pitch);
-  printf("Osc 2 Fine Pitch  : %+3hd (D/d)\n", Osc_2_fine_pitch);
-  printf("Osc 1/2 Mix       : %3hhu (F/f)\n", Osc_1_2_mix);
-  printf("Filter Cutoff     : %3hhu (G/g)\n", Filter_cutoff);
-  printf("Filter Resonance  : %3hhu (H/h)\n", Filter_resonance);
-  printf("Filter EG Amount  : %+3hd (J/j)\n", Filter_mod_amount);
-  printf("EG Decay Time     : %3hhu (X/x)\n", EG_decay_time);
-  printf("EG Sustain Level  : %3hhu (C/c)\n", EG_sustain_level);
-  printf("LFO Depth         : %3hhu (B/b)\n", LFO_depth);
-  printf("LFO Rate          : %3hhu (N/n)\n", LFO_rate);
+  printf("Octave Shift      : %+3hd\n",       octave_shift);
+  printf("Osc Waveform      : %3hhu\n",       Osc_waveform);
+  printf("Osc 2 Coarse Pitch: %+3hd\n",       Osc_2_coarse_pitch);
+  printf("Osc 2 Fine Pitch  : %+3hd\n",       Osc_2_fine_pitch);
+  printf("Osc 1/2 Mix       : %3hhu\n",       Osc_1_2_mix);
+  printf("Filter Cutoff     : %3hhu\n",       Filter_cutoff);
+  printf("Filter Resonance  : %3hhu\n",       Filter_resonance);
+  printf("Filter EG Amount  : %+3hd\n",       Filter_mod_amount);
+  printf("EG Decay Time     : %3hhu\n",       EG_decay_time);
+  printf("EG Sustain Level  : %3hhu\n",       EG_sustain_level);
+  printf("LFO Depth         : %3hhu\n",       LFO_depth);
+  printf("LFO Rate          : %3hhu\n",       LFO_rate);
   printf("Start Time        : %4hu/%4hu\n",   start_time, max_start_time);
   printf("Processing Time   : %4hu/%4hu\n\n", proc_time, max_proc_time);
 }

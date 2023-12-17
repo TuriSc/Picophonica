@@ -1,7 +1,7 @@
 /* Picophonica
  * A Raspberry Pi Pico synth engine for a toy keyboard, with instrument presets and Midi out.
  * By Turi Scandurra – https://turiscandurra.com/circuits
- * v1.0.0 - 2023.11.02
+ * v1.1.0 - 2023.12.17
  */
 
 #include <stdio.h>
@@ -97,7 +97,7 @@ void bi_decl_all(){
     bi_decl(bi_program_description(PROGRAM_DESCRIPTION));
     bi_decl(bi_program_version_string(PROGRAM_VERSION));
     bi_decl(bi_program_url(PROGRAM_URL));
-    bi_decl(bi_1pin_with_name(AUDIO_PIN, AUDIO_PIN_DESCRIPTION));
+    bi_decl(bi_1pin_with_name(PWMA_L_GPIO, PWMA_L_GPIO_DESCRIPTION));
     bi_decl(bi_1pin_with_name(POWER_ON_LED_PIN, POWER_ON_LED_PIN_DESCRIPTION));
     bi_decl(bi_1pin_with_name(cols_0[0], "Keypad matrix 0 column pin 1"));
     bi_decl(bi_1pin_with_name(cols_0[1], "Keypad matrix 0 column pin 2"));
