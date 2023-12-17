@@ -1,7 +1,7 @@
 /* Picophonica
  * A Raspberry Pi Pico synth engine for a toy keyboard, with instrument presets and Midi out.
  * By Turi Scandurra – https://turiscandurra.com/circuits
- * v1.1.0 - 2023.12.17
+ * v1.0.0 - 2023.11.02
  */
 
 #include <stdio.h>
@@ -126,14 +126,10 @@ void bi_decl_all(){
 
 int main() {
     bi_decl_all();
-    // Start the synth. It will take a few seconds to initialize
+    // Start the synth
     set_sys_clock_khz(FCLKSYS / 1000, true);
     stdio_init_all();
     startup_chord();
-    LFO_init();
-    EG_init();
-    Osc_init();
-    Filter_init();
     PWMA_init();
 
     // Enable Midi

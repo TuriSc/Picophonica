@@ -17,6 +17,7 @@
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
 #include "pico_synth_ex_presets.h"
+#include "pico_synth_ex_tables.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,58 +34,10 @@ typedef int16_t Q14; // Signed fixed-point number with 14-bit fractional part
 #define FA (440.0F) // reference frequency (Hz)
 
 //////// Oscillator group //////////////////////////////
-static uint32_t Osc_freq_table[122]; // frequency table
-static Q14 Osc_tune_table[256]; // frequency tuning table
-static Q14 Osc_wave_tables[2][31][512]; // wave tables
-static Q14 Osc_mix_table[65]; // mix table
-
 static volatile uint8_t Osc_waveform = 0; // waveform setting value
 static volatile int8_t Osc_2_coarse_pitch = +0; // oscillator 2 coarse pitch setting value
-static volatile int8_t Osc_2_fine_pitch = +4; // Oscillator 2 fine pitch setting value
+static volatile int8_t Osc_2_fine_pitch = +4; // oscillator 2 fine pitch setting value
 static volatile uint8_t Osc_1_2_mix = 16; // oscillator mix setting
-
-static void Osc_init() {
-  for (uint8_t pitch = 0; pitch < 122; ++pitch) {
-    uint32_t freq = (FA * powf(2, (pitch - 69.0F) / 12)) * (1LL << 32) / FS;
-    freq = ((freq >> 4) << 4) + 1; // make a small value
-    Osc_freq_table[pitch] = freq;
-  }
-
-  for (uint16_t tune = 0; tune < 256; ++tune) {
-    Osc_tune_table[tune] =
-        (powf(2, (tune - 128.0F) / (12 * 256)) * ONE_Q14) - ONE_Q14;
-  }
-
-  // TODO: I have a table every 4 semitones, but every 2 or 3 semitones might be better
-  // TODO: I want to add a reference table to eliminate duplicate data in Osc_wave_tables
-  for (uint8_t pitch_div_4 = 0; pitch_div_4 < 31; ++pitch_div_4) {
-    // TODO: Constraint below ((FS - 0.1F) / 2) is unnatural, room for improvement
-    uint16_t harm_max = // maximum harmonic order
-        (((FS - 1.0F) / 2) * (1LL << 32) / FS) /
-        Osc_freq_table[(pitch_div_4 << 2) + 1];
-    if (harm_max > 127) { harm_max = 127; }
-
-    // generate descending sawtooth wave, square wave
-    for (uint16_t i = 0; i < 512; ++i) {
-      float sum_saw    = 0.0F;
-      float sum_square = 0.0F;
-      for (uint16_t k = 1; k <= harm_max; ++k) {
-        sum_saw += (2 / PI) * (sinf(2 * PI * k * i / 512) / k);
-        if ((k % 2) == 1) {
-          sum_square += (4 / PI) * (sinf(2 * PI * k * i / 512) / k);
-        }
-      }
-      sum_saw *= 0.5F; // needed to avoid overflow in Osc_process()
-      sum_square *= 0.25F;
-      Osc_wave_tables[0][pitch_div_4][i] = float2fix(sum_saw,    14);
-      Osc_wave_tables[1][pitch_div_4][i] = float2fix(sum_square, 14);
-    }
-  }
-
-  for (uint8_t i = 0; i < 65; ++i) {
-    Osc_mix_table[i] = sqrtf((64 - i) / 64.0F) * ONE_Q14;
-  }
-}
 
 static inline Q28 Osc_phase_to_audio(uint32_t phase, uint8_t pitch) {
   Q14* wave_table = Osc_wave_tables[Osc_waveform][(pitch + 3) >> 2];
@@ -127,31 +80,9 @@ static inline Q28 Osc_process(uint8_t id,
 }
 
 //////// filter ///////////////////////////////////
-struct FILTER_COEFS { Q28 b0_a0, a1_a0, a2_a0; }; // Filter coefficients
-
-static struct FILTER_COEFS Filter_coefs_table[6][481]; // Filter coefficient group table
-
 static volatile uint8_t Filter_cutoff = 60; // Cutoff setting value
 static volatile uint8_t Filter_resonance = 3; // Resonance setting value
 static volatile int8_t Filter_mod_amount = +60; // Cutoff modulation amount setting value
-
-static void Filter_init() {
-  for (uint8_t resonance = 0; resonance < 6; ++resonance) {
-    for (uint16_t cutoff = 0; cutoff < 481; ++cutoff) {
-      float f0    = FA * powf(2, ((cutoff / 4.0F) - 54) / 12);
-      float w0    = 2 * PI * f0 / FS;
-      float q     = powf(sqrtf(2), resonance - 1.0F);
-      float alpha = sinf(w0) / (2 * q);
-      float b0    = (1 - cosf(w0)) / 2;
-      float a0    =  1 + alpha;
-      float a1    = -2 * cosf(w0);
-      float a2    =  1 - alpha;
-      Filter_coefs_table[resonance][cutoff].b0_a0 = float2fix(b0 / a0, 28);
-      Filter_coefs_table[resonance][cutoff].a1_a0 = float2fix(a1 / a0, 28);
-      Filter_coefs_table[resonance][cutoff].a2_a0 = float2fix(a2 / a0, 28);
-    }
-  }
-}
 
 static inline int32_t mul_s32_s32_h32(int32_t x, int32_t y) {
   // Higher 32 bits of signed 32-bit multiplication result
@@ -194,12 +125,6 @@ static uint32_t EG_exp_table[65]; // Exponential table
 static volatile uint8_t EG_decay_time = 40; // Decay time setting value
 static volatile uint8_t EG_sustain_level = 0; // Sustain level setting value
 
-static inline void EG_init() {
-  for (uint8_t index = 0; index < 65; ++index) {
-    EG_exp_table[index] = 100 * powf(10, (index - 32.0F) / 16);
-  }
-}
-
 static inline Q14 EG_process(uint8_t id, uint8_t gate_in) {
   static int32_t curr_level[4]; // EG output level current value
   static uint8_t curr_gate[4]; // gate input level current value
@@ -228,17 +153,8 @@ static inline Q14 EG_process(uint8_t id, uint8_t gate_in) {
 }
 
 //////// Low Frequency Oscillator (LFO) /////////
-static uint32_t LFO_freq_table[65]; // Frequency table
-
 static volatile uint8_t LFO_depth = 16; // Depth setting value
 static volatile uint8_t LFO_rate = 48; // Speed ​​setting value
-
-static void LFO_init() {
-  for (uint8_t rate = 0; rate < 65; ++rate) {
-    LFO_freq_table[rate] =
-        2 * powf(10, (rate - 32.0F) / 32) * (1LL << 32) / FS;
-  }
-}
 
 static inline Q14 LFO_process(uint8_t id) {
   static uint32_t phase[4]; // Phase

@@ -12,7 +12,7 @@ Making-of video (with a soundtrack played on the Picophonica): [YouTube video](h
 I am not including a schematic since it would only be pertinent to my specific keyboard.
 Connect each row and column of your keyboard matrix to a GPIO pin, and define it in config.h.
 
-The synth outputs monoaural audio via PWM (but stereo is available). Connect the AUDIO_PIN on the Pi Pico to the input of an amplifier. My keyboard came with a small amplifier and speaker, but if you need to build one, follow the design I used for [Dodepan](https://github.com/TuriSc/Dodepan), which also provide some noise filtering and DC offset removal. The choice of a switched 3.5mm jack means that when a cable is plugged into the audio output, the amp and speaker are bypassed.
+The synth outputs audio via PWM. Connect PWMA_R_GPIO and/or PWMA_L_GPIO on the Pi Pico to the input of an amplifier. My keyboard came with a small amplifier and speaker, but if you need to build one, follow the design I used for [Dodepan](https://github.com/TuriSc/Dodepan), which also provide some noise filtering and DC offset removal. The choice of a switched 3.5mm jack means that when a cable is plugged into the audio output, the amp and speaker are bypassed.
 
 ![Dodepan amplifier](images/dodepan-amp.png)
 
@@ -26,4 +26,5 @@ More images on [my blog](https://turiscandurra.com/picophonica/)
 
 
 ### Version history
+- 2023-12-17 - v1.1.0 - Added lookup tables with precomputed data; Enabled stereo output
 - 2023-12-05 - v1.0.0 - First release
