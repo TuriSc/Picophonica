@@ -9,10 +9,9 @@ Making-of video (with a soundtrack played on the Picophonica): [YouTube video](h
 
 
 ### Circuit wiring
-I am not including a schematic since it would only be pertinent to my specific keyboard.
 Connect each row and column of your keyboard matrix to a GPIO pin, and define it in config.h.
 
-The synth outputs audio via PWM. Connect PWMA_R_GPIO and/or PWMA_L_GPIO on the Pi Pico to the input of an amplifier. My keyboard came with a small amplifier and speaker, but if you need to build one, follow the design I used for [Dodepan](https://github.com/TuriSc/Dodepan), which also provide some noise filtering and DC offset removal. The choice of a switched 3.5mm jack means that when a cable is plugged into the audio output, the amp and speaker are bypassed.
+The synth outputs audio via PWM. Connect PWMA_R_GPIO and/or PWMA_L_GPIO on the Pi Pico to the input of an amplifier. My keyboard came with a small amplifier and speaker, but if you need to build one, follow the design I used for [Dodepan](https://github.com/TuriSc/Dodepan), which also provides some noise filtering and DC offset removal. The choice of a switched 3.5mm jack means that when a cable is plugged into the audio output, the amp and speaker are bypassed.
 
 ![Dodepan amplifier](images/dodepan-amp.png)
 
@@ -22,7 +21,10 @@ The existing, rather pointless 3.5mm microphone input found a new purpose as an 
 
 ### More info
 Picophonica is an original project.
-More images on [my blog](https://turiscandurra.com/picophonica/)
+
+More images on [my blog](https://turiscandurra.com/picophonica/).
+
+[RP2040-pico_synth_ex/](https://github.com/TuriSc/RP2040-pico_synth_ex/) is a newer version of this synth engine with an improved audio quality due to its I²S sound capabilities.
 
 
 ### Version history
