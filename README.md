@@ -18,6 +18,7 @@ The synth outputs audio via PWM. Connect PWMA_R_GPIO and/or PWMA_L_GPIO on the P
 I my build I managed to rewire a secondary keypad with fourteen keys, using it to recall the presets and change instrument parameters.
 The existing, rather pointless 3.5mm microphone input found a new purpose as an audio output, while a USB-C port exposed through a simple adapter enables Midi-out functionality.
 
+Pre-compiled builds for Raspberry Pi Pico (RP2040) and Raspberry Pi Pico 2 (RP2350) are provided in [/dist](dist).
 
 ### More info
 Picophonica is an original project.

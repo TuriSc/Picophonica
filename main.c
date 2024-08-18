@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
+#include "hardware/clocks.h" 
 
 #include "config.h"
 
