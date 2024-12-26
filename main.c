@@ -1,13 +1,17 @@
-/* Picophonica
- * A Raspberry Pi Pico synth engine for a toy keyboard, with instrument presets and Midi out.
- * By Turi Scandurra – https://turiscandurra.com/circuits
- * v1.0.0 - 2023.11.02
+/**
+ * @file main.c
+ * @projectname Picophonica
+ * @brief A Raspberry Pi Pico synth engine for a toy keyboard, with instrument presets and Midi out.
+ * @author Turi Scandurra
+ * @url https://turiscandurra.com/circuits
+ * @version v1.0.0
+ * @date 2023.11.02
  */
 
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
-#include "hardware/clocks.h" 
+#include "hardware/clocks.h"
 
 #include "config.h"
 
@@ -16,60 +20,112 @@
 #include "inc/pico_synth_ex.c"  // Synth by ISGK Instruments (Ryo Ishigaki), licensed under CC0
 #include "keypad.h"             // https://github.com/TuriSc/RP2040-Keypad-Matrix
 
-KeypadMatrix keypad_0; // The main keybed
+/**
+ * @brief The main keypad matrix.
+ */
+KeypadMatrix keypad_0;
 const uint8_t cols_0[] = KEYPAD_0_COLS;
 const uint8_t rows_0[] = KEYPAD_0_ROWS;
 
-KeypadMatrix keypad_1; // Secondary buttons
+/**
+ * @brief The secondary keypad matrix.
+ */
+KeypadMatrix keypad_1;
 const uint8_t cols_1[] = KEYPAD_1_COLS;
 const uint8_t rows_1[] = KEYPAD_1_ROWS;
 
-uint8_t capo = CAPO_DEFAULT; // The first note on the keyboard
+/**
+ * @brief The capo (first note on the keyboard).
+ */
+uint8_t capo = CAPO_DEFAULT;
+
+/**
+ * @brief The page shift value.
+ */
 uint8_t page_shift;
+
+/**
+ * @brief The mute flag.
+ */
 bool mute;
 
-static inline uint32_t tudi_midi_write24 (uint8_t jack_id, uint8_t b1, uint8_t b2, uint8_t b3){
+/**
+ * @brief Writes a 24-bit MIDI message to the specified jack.
+ *
+ * @param jack_id The jack ID.
+ * @param b1 The first byte of the message.
+ * @param b2 The second byte of the message.
+ * @param b3 The third byte of the message.
+ * @return The number of bytes written.
+ */
+static inline uint32_t tudi_midi_write24(uint8_t jack_id, uint8_t b1, uint8_t b2, uint8_t b3) {
     uint8_t msg[3] = { b1, b2, b3 };
     return tud_midi_stream_write(jack_id, msg, 3);
 }
 
-void keypad_0_pressed(uint8_t key){
-    if(!mute) { note_on(capo + key); }
+/**
+ * @brief Handles a key press on the main keypad.
+ *
+ * @param key The key that was pressed.
+ */
+void keypad_0_pressed(uint8_t key) {
+    if (!mute) {
+        note_on(capo + key);
+    }
     int8_t octave_shift = get_octave_shift() * 12;
     tudi_midi_write24(0, 0x90, capo + key + octave_shift, 100); // 100 is an arbitrary velocity value
 }
 
-void keypad_0_released(uint8_t key){
+/**
+ * @brief Handles a key release on the main keypad.
+ *
+ * @param key The key that was released.
+ */
+void keypad_0_released(uint8_t key) {
     note_off(capo + key);
     int8_t octave_shift = get_octave_shift() * 12;
     tudi_midi_write24(0, 0x80, capo + key + octave_shift, 0);
 }
 
-void keypad_1_pressed(uint8_t key){
-    switch(key){
+/**
+ * @brief Handles a key press on the secondary keypad.
+ *
+ * @param key The key that was pressed.
+ */
+void keypad_1_pressed(uint8_t key) {
+    switch (key) {
         case KEY_F_UP:
             synth_control(OCTAVE_SHIFT_INC);
-        break;
+            break;
         case KEY_F_DOWN:
             synth_control(OCTAVE_SHIFT_DEC);
-        break;
+            break;
         case KEY_G_UP:
-            if(++page_shift >= NUM_PAGES){ page_shift = 0; }
-        break;
+            if (++page_shift >= NUM_PAGES) {
+                page_shift = 0;
+            }
+            break;
         case KEY_G_DOWN:
-            if(--page_shift < 0){ page_shift = NUM_PAGES; }
-        break;
+            if (--page_shift < 0) {
+                page_shift = NUM_PAGES;
+            }
+            break;
         default:
             synth_control(key + page_shift * NUM_KEYS_1);
-        break;
+            break;
     }
     // print_status(); // DEBUG
 }
 
-void keypad_1_long_pressed(uint8_t key){
+/**
+ * @brief Handles a long key press on the secondary keypad.
+ *
+ * @param key The key that was pressed.
+ */
+void keypad_1_long_pressed(uint8_t key) {
     // TODO: hold a key while on page 0 to save to flash
     // current settings as a preset
-    switch(key){
+    switch (key) {
         case KEY_A_UP:
         case KEY_A_DOWN:
         case KEY_B_UP:
@@ -81,18 +137,21 @@ void keypad_1_long_pressed(uint8_t key){
         case KEY_E_UP:
         case KEY_E_DOWN:
             // Long-pressing a key equals pressing it six times
-            for(uint8_t i=0; i<6; i++) {
+            for (uint8_t i = 0; i < 6; i++) {
                 synth_control(key + page_shift * NUM_KEYS_1);
             }
-        break;
+            break;
         case KEY_G_UP:
             mute = !mute; // Muting the synth. Useful when using Midi
             synth_control(ALL_NOTES_OFF);
-        break;
+            break;
     }
 }
 
-void bi_decl_all(){
+/**
+ * @brief Declares binary information for Picotool.
+ */
+void bi_decl_all() {
 #if PICO_ON_DEVICE
     bi_decl(bi_program_name(PROGRAM_NAME));
     bi_decl(bi_program_description(PROGRAM_DESCRIPTION));
@@ -125,8 +184,16 @@ void bi_decl_all(){
 #endif
 }
 
+/**
+ * @brief The main entry point of the program.
+ *
+ * Initializes the system, sets up the keypads, and runs the main loop.
+ *
+ * @return The program exit status.
+ */
 int main() {
     bi_decl_all();
+
     // Start the synth
     set_sys_clock_khz(FCLKSYS / 1000, true);
     stdio_init_all();
@@ -153,3 +220,4 @@ int main() {
         tud_task(); // tinyusb device task
     }
 }
+
